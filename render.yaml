@@ -1,0 +1,29 @@
+# Render Blueprint — one click deploy of the free web service.
+#
+#   Render dashboard → New → Blueprint → pick this repo → Apply.
+#
+# Free plan notes:
+#   - 512 MB RAM  → MAX_SESSIONS=2 is the safe ceiling
+#   - sleeps after ~15 min without traffic, wakes on the next request
+#     (the first page load after sleeping can take ~50 seconds)
+services:
+  - type: web
+    name: wa-pair-code
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: MAX_SESSIONS
+        value: 2
+      - key: TRUST_PROXY
+        value: true
+      - key: ALLOW_PAIRING
+        value: true
+      - key: ALLOW_QR
+        value: true

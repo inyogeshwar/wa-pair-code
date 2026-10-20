@@ -1,0 +1,438 @@
+/* ─────────────────────────────────────────────────────────────
+   WA Pair Code — single card layout, no framework.
+   Light theme, generous spacing, mobile-first.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --surface: #f1f5f9;
+  --accent: #0b0b0f;
+  --accent-hover: #1f2937;
+  --green: #15803d;
+  --green-bg: #dcfce7;
+  --red: #b91c1c;
+  --red-bg: #fee2e2;
+  --blue: #1d4ed8;
+  --blue-bg: #dbeafe;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+  font-family: "Segoe UI", Inter, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(900px 480px at 50% -12%, #dbeafe 0%, rgba(219, 234, 254, 0) 62%),
+    #eef2f7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  width: min(440px, 100%);
+  padding: 28px 24px 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px -20px rgba(15, 23, 42, 0.28);
+}
+
+/* ── Brand ─────────────────────────────────────────────────── */
+.brand {
+  text-align: center;
+}
+
+.logo {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+}
+
+.logo svg {
+  width: 34px;
+  height: 34px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 22px 0 18px;
+  padding: 6px;
+  background: var(--surface);
+  border-radius: 14px;
+}
+
+.tab {
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover:not(.is-active) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.tab.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Panels ────────────────────────────────────────────────── */
+.panel {
+  display: grid;
+  gap: 10px;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+  color: #94a3b8;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.18);
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.87rem;
+  line-height: 1.5;
+}
+
+.hint code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: 0.85em;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.05s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: #334155;
+}
+
+.btn-ghost:hover {
+  background: #e2e8f0;
+}
+
+.btn-copy {
+  width: auto;
+  padding: 9px 14px;
+  background: var(--surface);
+  color: #334155;
+  font-size: 0.85rem;
+}
+
+.btn-copy:hover {
+  background: #e2e8f0;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* ── Result ────────────────────────────────────────────────── */
+.result {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.code {
+  padding: 20px 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+  font-family: "Cascadia Code", "SF Mono", Consolas, monospace;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  word-break: break-all;
+}
+
+.qr {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.qr img {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timer {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer.is-warn {
+  color: var(--red);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  color: #475569;
+  font-size: 0.87rem;
+  line-height: 1.75;
+}
+
+.steps b {
+  color: var(--ink);
+}
+
+/* ── Download ──────────────────────────────────────────────── */
+.download {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  background: #f0fdf4;
+}
+
+.download-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* ── Status ────────────────────────────────────────────────── */
+.status {
+  min-height: 1.25rem;
+  margin: 14px 0 0;
+  font-size: 0.87rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
+
+.status.is-info {
+  color: var(--blue);
+}
+
+.status.is-ok {
+  color: var(--green);
+}
+
+.status.is-error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--red-bg);
+  color: var(--red);
+  font-weight: 500;
+}
+
+/* ── Footer ────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+/* ── Dialog ────────────────────────────────────────────────── */
+.dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 22px;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px -20px rgba(15, 23, 42, 0.4);
+  color: var(--ink);
+}
+
+.dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.dialog h2 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+.api-list {
+  margin: 14px 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.api-list dt {
+  margin-top: 10px;
+}
+
+.api-list dt code {
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.api-list dd {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.api-list dd code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+.is-hidden {
+  display: none !important;
+}
+
+@media (max-width: 420px) {
+  .card {
+    padding: 22px 18px 14px;
+    border-radius: 18px;
+  }
+
+  .code {
+    font-size: 1.5rem;
+    letter-spacing: 0.08em;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+  }
+}

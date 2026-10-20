@@ -1,0 +1,294 @@
+/**
+ * session-manager.js — the only module that talks to makeWASocket.
+ *
+ * One "session" = one temporary Baileys socket used to link a device:
+ *
+ *   mode "pair" → wait for the first ready signal, ask WhatsApp for an
+ *                 8-character pairing code for the given number, hand it back
+ *   mode "qr"   → wait for the first QR payload, render it as a PNG data URL
+ *
+ * Why the first `qr` event and not an immediate call: `requestPairingCode`
+ * throws "Connection Closed" if the socket has not finished its handshake.
+ * The `qr` update is Baileys' own "I am ready" signal, so we key off that.
+ *
+ * Lifecycle guarantees:
+ *   - hard cap on concurrent sockets (memory on free hosts)
+ *   - every session expires; a sweeper closes the socket and wipes its auth dir
+ *   - sockets are ended, never logged out — logging out would invalidate the
+ *     credentials the user is about to download
+ */
+import makeWASocket, {
+  useMultiFileAuthState,
+  makeCacheableSignalKeyStore,
+  Browsers,
+  DisconnectReason,
+} from '@whiskeysockets/baileys';
+import QRCode from 'qrcode';
+import JSZip from 'jszip';
+import pino from 'pino';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+
+import { config } from './config.js';
+import { formatCode } from './util.js';
+
+/** Baileys is chatty on stdout; keep it quiet unless asked. */
+const baileysLog = pino({ level: process.env.BAILEYS_LOG_LEVEL ?? 'silent' });
+
+/** @type {Map<string, object>} session id → session */
+const sessions = new Map();
+let sweeper = null;
+
+/** Error with an HTTP-friendly status and a stable machine code. */
+export class SessionError extends Error {
+  constructor(message, code = 'SESSION_ERROR', status = 400) {
+    super(message);
+    this.name = 'SessionError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/**
+ * Create a session and wait until it has a pairing code or a QR image.
+ * Throws SessionError on capacity, timeout, or WhatsApp refusal.
+ */
+export async function createSession({ number = null, mode }) {
+  if (sessions.size >= config.maxSessions) {
+    throw new SessionError(
+      'The server is handling too many sessions right now. Please try again in a minute.',
+      'BUSY',
+      503
+    );
+  }
+
+  const session = {
+    id: randomUUID(),
+    mode,
+    number,
+    status: 'requesting',
+    code: null,
+    qrDataUrl: null,
+    error: null,
+    authDir: path.join(os.tmpdir(), 'wa-pair-code', randomUUID()),
+    sock: null,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + config.sessionTtlMs,
+    released: false,
+  };
+
+  await mkdir(session.authDir, { recursive: true });
+  sessions.set(session.id, session);
+
+  try {
+    await openSocket(session);
+  } catch (error) {
+    await destroySession(session.id);
+    throw error;
+  }
+
+  return publicView(session);
+}
+
+/** Open the socket and resolve as soon as we have a code / QR / open session. */
+async function openSocket(session) {
+  const { state, saveCreds } = await useMultiFileAuthState(session.authDir);
+
+  const sock = makeWASocket({
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, baileysLog),
+    },
+    browser: Browsers.ubuntu('WA Pair Code'),
+    // Do not announce "online" to contacts while linking.
+    markOnlineOnConnect: false,
+    // A linked device needs no history for this use case.
+    syncFullHistory: false,
+    generateHighQualityLinkPreview: false,
+    // This service never processes messages — it only links a device.
+    shouldIgnoreJid: () => true,
+    logger: baileysLog,
+  });
+
+  session.sock = sock;
+  sock.ev.on('creds.update', saveCreds);
+
+  let settled = false;
+  let resolveReady;
+  let rejectReady;
+
+  const ready = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+
+  const finish = (settle, value) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    settle(value);
+  };
+
+  const timer = setTimeout(() => {
+    finish(
+      rejectReady,
+      new SessionError('WhatsApp did not respond in time. Please try again.', 'TIMEOUT', 504)
+    );
+  }, config.readyTimeoutMs);
+
+  sock.ev.on('connection.update', async (update) => {
+    try {
+      const { connection, lastDisconnect, qr } = update;
+
+      // ── Ready signal: a fresh QR payload ───────────────────────────
+      if (qr) {
+        if (session.mode === 'qr') {
+          session.qrDataUrl = await QRCode.toDataURL(qr, {
+            width: 340,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+          }).catch(() => null);
+          if (session.status === 'requesting') session.status = 'awaiting';
+          finish(resolveReady);
+        } else if (session.mode === 'pair' && !session.code) {
+          try {
+            const raw = await sock.requestPairingCode(session.number);
+            session.code = formatCode(raw);
+            session.status = 'awaiting';
+            finish(resolveReady);
+          } catch {
+            session.status = 'failed';
+            session.error =
+              'WhatsApp refused the pairing request. Check the number (with country code) and try again.';
+            finish(rejectReady, new SessionError(session.error, 'PAIR_FAILED', 502));
+          }
+        }
+      }
+
+      // ── Device linked ──────────────────────────────────────────────
+      if (connection === 'open') {
+        session.status = 'paired';
+        session.pairedAt = Date.now();
+        session.expiresAt = Date.now() + config.pairedKeepMs;
+        session.qrDataUrl = null;
+        finish(resolveReady);
+      }
+
+      // ── Permanent failure ──────────────────────────────────────────
+      if (connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+          session.status = 'failed';
+          session.error = 'WhatsApp rejected this session. Generate a new code.';
+          finish(rejectReady, new SessionError(session.error, 'LOGGED_OUT', 409));
+        }
+        // Transient closes are handled by Baileys' own reconnect loop.
+      }
+    } catch {
+      // A listener must never throw into the socket's emitter.
+    }
+  });
+
+  await ready;
+}
+
+/** Public, secret-free representation sent to the browser. */
+export function publicView(session) {
+  return {
+    id: session.id,
+    mode: session.mode,
+    status: session.status,
+    code: session.code,
+    qr: session.qrDataUrl,
+    error: session.error,
+    expiresAt: session.expiresAt,
+    secondsLeft: Math.max(0, Math.ceil((session.expiresAt - Date.now()) / 1000)),
+  };
+}
+
+/** Look up a session by id. Returns null when it never existed or expired. */
+export function getSession(id) {
+  return sessions.get(String(id ?? '')) ?? null;
+}
+
+/** Close the socket WITHOUT logging out (keeps the linked device valid). */
+function closeSocket(session) {
+  try {
+    session.sock?.end(undefined);
+  } catch {
+    /* already closed */
+  }
+  session.sock = null;
+}
+
+/** Close the socket, wipe its auth directory, and forget the session. */
+export async function destroySession(id) {
+  const session = sessions.get(String(id ?? ''));
+  if (!session) return false;
+  sessions.delete(session.id);
+  closeSocket(session);
+  await rm(session.authDir, { recursive: true, force: true }).catch(() => {});
+  return true;
+}
+
+/**
+ * Zip the session's auth files so the user can run their own bot with them.
+ * Also releases the socket: two clients must never share one credential set
+ * at the same time.
+ */
+export async function buildSessionArchive(id) {
+  const session = getSession(id);
+  if (!session) {
+    throw new SessionError('Session not found or already expired.', 'NOT_FOUND', 404);
+  }
+  if (session.status !== 'paired') {
+    throw new SessionError('This device is not linked yet.', 'NOT_PAIRED', 409);
+  }
+
+  const zip = new JSZip();
+  const entries = await readdir(session.authDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    zip.file(entry.name, await readFile(path.join(session.authDir, entry.name)));
+  }
+
+  // Hand the credential over: stop using it here so the user's bot can connect.
+  closeSocket(session);
+  session.released = true;
+
+  return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
+
+/** Number of live sessions (used by /healthz and the load-shedding check). */
+export function activeCount() {
+  return sessions.size;
+}
+
+/** Periodically drop expired sessions and their auth directories. */
+export function startSweeper() {
+  if (sweeper) return;
+  sweeper = setInterval(() => {
+    const now = Date.now();
+    for (const session of [...sessions.values()]) {
+      if (now >= session.expiresAt) {
+        destroySession(session.id).catch(() => {});
+      }
+    }
+  }, 15_000);
+  sweeper.unref?.();
+}
+
+export function stopSweeper() {
+  if (sweeper) clearInterval(sweeper);
+  sweeper = null;
+}
+
+/** Shutdown hook: close every socket and remove every auth directory. */
+export async function destroyAll() {
+  stopSweeper();
+  await Promise.all([...sessions.keys()].map((id) => destroySession(id)));
+}
+
+export { sessions as _sessionsForTests };

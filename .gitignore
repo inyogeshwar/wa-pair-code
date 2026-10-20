@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Secrets — never commit
+.env
+.env.local
+
+# Runtime temp data (sessions live in the OS temp dir, not here)
+tmp/
+logs/
+*.log
+
+# OS noise
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editors
+.vscode/
+.idea/

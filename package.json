@@ -1,0 +1,32 @@
+{
+  "name": "wa-pair-code",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WhatsApp pairing-code and QR session generator with a small web UI. Generates a code, lets the owner link a device, and hands back the session files.",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "pairing-code",
+    "qr",
+    "session-generator"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jszip": "^3.10.1",
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  }
+}
