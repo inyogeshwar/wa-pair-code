@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "lint:design": "designmd lint DESIGN.md"
   },
   "keywords": [
     "whatsapp",
@@ -28,5 +29,8 @@
     "jszip": "^3.10.1",
     "pino": "^9.5.0",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@google/design.md": "^0.4.0"
   }
 }

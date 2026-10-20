@@ -4,6 +4,8 @@ name: WA Pair Code
 description: "A near-black developer-tool surface built for a single job: linking a WhatsApp device. The canvas is #08090A, content sits on charcoal panels (#101214) separated by 1px translucent hairlines, and one emerald accent (#2EE59D) carries every interaction — never decoration. Type is neutral sans for prose and a wide-tracked monospace for the pairing code, which is the only element allowed to be loud. Depth comes from layered surfaces and a single inset highlight, not from heavy shadows."
 
 colors:
+  primary: "#2EE59D"
+  on-primary: "#04140D"
   canvas: "#08090A"
   canvas-raised: "#0B0D0F"
   surface-1: "#101214"
@@ -13,16 +15,18 @@ colors:
   hairline-strong: "rgba(255,255,255,0.13)"
   ink: "#F4F6F7"
   ink-muted: "#A6AEB6"
-  ink-subtle: "#6F7880"
+  ink-subtle: "#8A9299"
   ink-disabled: "#4A5158"
   accent: "#2EE59D"
   accent-hover: "#4DF0B0"
   accent-pressed: "#1FCB8A"
   on-accent: "#04140D"
   accent-soft: "rgba(46,229,157,0.12)"
+  accent-soft-solid: "#142B24"
   accent-ring: "rgba(46,229,157,0.18)"
   danger: "#FF7A7A"
   danger-soft: "rgba(255,122,122,0.12)"
+  danger-soft-solid: "#2D1E20"
   warning: "#F5B84D"
   info: "#7AB8FF"
   overlay: "rgba(0,0,0,0.62)"
@@ -103,9 +107,19 @@ spacing:
   section: 88px
 
 components:
+  page:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink-muted}"
+    typography: "{typography.body}"
+  divider:
+    backgroundColor: "{colors.hairline}"
+    height: 1px
+  divider-strong:
+    backgroundColor: "{colors.hairline-strong}"
+    height: 1px
   button-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.on-accent}"
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
     typography: "{typography.button}"
     rounded: "{rounded.md}"
     height: 48px
@@ -136,6 +150,9 @@ components:
     backgroundColor: "{colors.canvas-raised}"
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
+  input-placeholder:
+    textColor: "{colors.ink-disabled}"
+    typography: "{typography.body}"
   tab-active:
     backgroundColor: "{colors.surface-3}"
     textColor: "{colors.ink}"
@@ -144,7 +161,7 @@ components:
     height: 36px
   tab-idle:
     backgroundColor: "{colors.canvas-raised}"
-    textColor: "{colors.ink-subtle}"
+    textColor: "{colors.ink-muted}"
     typography: "{typography.button}"
     rounded: "{rounded.sm}"
     height: 36px
@@ -160,17 +177,59 @@ components:
     rounded: "{rounded.xl}"
     padding: 24px
   badge-success:
-    backgroundColor: "{colors.accent-soft}"
+    backgroundColor: "{colors.accent-soft-solid}"
     textColor: "{colors.accent}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
     padding: 4px 10px
   badge-danger:
-    backgroundColor: "{colors.danger-soft}"
+    backgroundColor: "{colors.danger-soft-solid}"
     textColor: "{colors.danger}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
     padding: 4px 10px
+  badge-warning:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.warning}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    padding: 4px 10px
+  badge-info:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.info}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    padding: 4px 10px
+  success-panel:
+    backgroundColor: "{colors.accent-soft-solid}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.lg}"
+    padding: 22px 18px
+  alert-panel:
+    backgroundColor: "{colors.danger-soft-solid}"
+    textColor: "{colors.danger}"
+    typography: "{typography.body-sm}"
+    rounded: "{rounded.md}"
+    padding: 11px 13px
+  card-subtitle:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.ink-subtle}"
+    typography: "{typography.body-sm}"
+  glow-accent:
+    backgroundColor: "{colors.accent-soft}"
+    rounded: "{rounded.pill}"
+    height: 5px
+  glow-danger:
+    backgroundColor: "{colors.danger-soft}"
+    rounded: "{rounded.pill}"
+    height: 5px
+  focus-ring:
+    backgroundColor: "{colors.accent-ring}"
+    rounded: "{rounded.md}"
+    height: 3px
+  dialog-backdrop:
+    backgroundColor: "{colors.overlay}"
 ---
 
 ## Overview
@@ -199,8 +258,15 @@ The palette is one accent on a ladder of near-blacks.
 - **Hairlines (white at 7% / 13%):** all borders. Never a solid gray line.
 - **Danger (#FF7A7A):** validation and failed sessions only. Never for emphasis.
 
-Text contrast: `ink` on `surface-1` is 15.9:1; `ink-subtle` is 4.8:1 and is only
-used at 13px or above for secondary metadata.
+Text contrast: `ink` on `surface-1` is 15.9:1; `ink-subtle` is 6.0:1 and is only
+used at 13px or above for secondary metadata. Small labels always clear WCAG AA
+(4.5:1) — which is why the idle tab label uses `ink-muted` and not the dimmer
+`ink-subtle`.
+
+Status badges use pre-composited backgrounds (`accent-soft-solid`,
+`danger-soft-solid`) rather than alpha, so the measured contrast matches what
+is actually painted: emerald on `#142B24` is 9.2:1, danger on `#2D1E20` is
+6.3:1.
 
 ## Typography
 

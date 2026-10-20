@@ -209,10 +209,11 @@ This service is the companion to **[whatsapp-ai-bot](https://github.com/inyogesh
 
 ## Design system
 
-The UI is built from a written design contract, not from ad-hoc CSS. [`DESIGN.md`](./DESIGN.md) holds machine-readable tokens (colours, type scale, radii, spacing, components) plus the rationale for each decision — the same format described at [google-labs-code/design.md](https://github.com/google-labs-code/design.md), and it passes the reference linter:
+The UI is built from a written design contract, not from ad-hoc CSS. [`DESIGN.md`](./DESIGN.md) holds machine-readable tokens (colours, type scale, radii, spacing, components) plus the rationale for each decision — the same format described at [google-labs-code/design.md](https://github.com/google-labs-code/design.md). It lints clean against the reference linter:
 
 ```bash
-npx @google/design.md lint DESIGN.md
+npm run lint:design
+# { "errors": 0, "warnings": 0 }
 ```
 
 The short version:
@@ -227,6 +228,11 @@ The short version:
 | **Motion** | State changes only; everything collapses under `prefers-reduced-motion` |
 
 The pairing code is deliberately the loudest object on the page — 34px mono with 5px tracking, grouped 4-4 so it reads from an arm's length away.
+
+Two details the linter forced, and both were real bugs:
+
+- Every small label clears WCAG AA. The idle tab label was `#6F7880` on `#0B0D0F` — 4.33:1, just under the 4.5:1 line — so it now uses `ink-muted` (8.7:1). Secondary body text moved to `#8A9299` (6.0:1).
+- Status badges use pre-composited backgrounds instead of `rgba()`, so the contrast you measure is the contrast that actually gets painted (emerald on `#142B24` is 9.2:1).
 
 ---
 

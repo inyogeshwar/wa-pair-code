@@ -19,7 +19,7 @@
   --hairline-strong: rgba(255, 255, 255, 0.13);
   --ink: #f4f6f7;
   --ink-muted: #a6aeb6;
-  --ink-subtle: #6f7880;
+  --ink-subtle: #8a9299; /* 6.0:1 on surface-1, 5.5:1 on canvas */
   --ink-disabled: #4a5158;
 
   /* accent */
@@ -28,11 +28,13 @@
   --accent-pressed: #1fcb8a;
   --on-accent: #04140d;
   --accent-soft: rgba(46, 229, 157, 0.12);
+  --accent-soft-solid: #142b24; /* accent-soft composited over surface-1 */
   --accent-ring: rgba(46, 229, 157, 0.18);
 
   /* semantic */
   --danger: #ff7a7a;
   --danger-soft: rgba(255, 122, 122, 0.12);
+  --danger-soft-solid: #2d1e20; /* danger-soft composited over surface-1 */
 
   /* shape */
   --r-xs: 6px;
@@ -397,7 +399,7 @@ h1 {
   border: 0;
   border-radius: var(--r-sm);
   background: none;
-  color: var(--ink-subtle);
+  color: var(--ink-muted); /* 8.7:1 on canvas-raised — AA at this size */
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -593,13 +595,13 @@ h1 {
 }
 
 .badge.is-live {
-  background: var(--accent-soft);
+  background: var(--accent-soft-solid);
   border-color: rgba(46, 229, 157, 0.26);
   color: var(--accent);
 }
 
 .badge.is-error {
-  background: var(--danger-soft);
+  background: var(--danger-soft-solid);
   border-color: rgba(255, 122, 122, 0.28);
   color: var(--danger);
 }
@@ -809,7 +811,7 @@ h1 {
   padding: 11px 13px;
   border: 1px solid rgba(255, 122, 122, 0.26);
   border-radius: var(--r-md);
-  background: var(--danger-soft);
+  background: var(--danger-soft-solid);
   color: var(--danger);
   font-size: 12.5px;
   line-height: 1.55;

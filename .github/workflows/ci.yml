@@ -36,4 +36,4 @@ jobs:
         run: node --check public/app.js
 
       - name: Validate DESIGN.md against the reference spec
-        run: npx --yes @google/design.md lint DESIGN.md
+        run: npm run lint:design
