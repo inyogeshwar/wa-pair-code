@@ -1,34 +1,66 @@
 # WA Pair Code
 
-A tiny self-hosted web service that links a WhatsApp device and hands the
-session back to you.
+A small self-hosted web service that links a WhatsApp device and hands the session back to you.
 
-- **Pair code** — type a number, get an 8-character code, enter it in WhatsApp.
-- **QR code** — or scan a QR instead.
-- **Session download** — once linked, download a zip of the auth files and drop
-  them into your bot's `auth/` folder.
+Type a number, get an 8-character pairing code, enter it in WhatsApp, then download a zip of the auth files. Or scan a QR instead. Built on [`@whiskeysockets/baileys`](https://github.com/WhiskeySockets/Baileys) v7 — no database, no API keys, no external services.
 
-Built on [`@whiskeysockets/baileys`](https://github.com/WhiskeySockets/Baileys) v7.
-No database, no API keys, no external services.
+![WA Pair Code walkthrough](docs/demo.gif)
+
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-3c873a?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
+[![Baileys](https://img.shields.io/badge/baileys-7.0.0--rc14-2ee59d?style=flat-square)](https://github.com/WhiskeySockets/Baileys)
+[![Tests](https://img.shields.io/badge/tests-4%20passing-2ee59d?style=flat-square)](#tests)
+[![Deploy](https://img.shields.io/badge/deploy-render-6f7880?style=flat-square)](#deploy)
+[![License](https://img.shields.io/badge/license-MIT-6f7880?style=flat-square)](./LICENSE)
+
+![WA Pair Code](docs/pair-code.png)
 
 > ## ⚠️ Read this first
 >
-> The files this service gives you are **full access to that WhatsApp account**.
-> Anyone who has them can read and send messages as that number.
+> The files this service gives you are **full access to that WhatsApp account**. Anyone who has them can read and send messages as that number.
 >
 > - Only ever generate a code for **your own** number.
 > - Never enter a pairing code that someone else sent you.
 > - Never upload the downloaded zip anywhere, never commit it, never share it.
-> - The server keeps your session in memory/temp only until it expires, but the
->   operator of the server *can* read it while it is there. Self-host it (or use
->   a host you trust) if that matters to you.
+> - The server keeps your session in memory and in a temp directory only until it expires — but whoever operates the server *can* read it while it is there. Self-host it, or use a host you trust.
+
+---
+
+## Contents
+
+- [Screenshots](#screenshots)
+- [Run locally](#run-locally)
+- [Deploy](#deploy)
+- [API](#api)
+- [Configuration](#configuration)
+- [Using the downloaded session](#using-the-downloaded-session)
+- [How it works](#how-it-works)
+- [Design system](#design-system)
+- [Tests](#tests)
+- [License](#license)
+
+---
+
+## Screenshots
+
+**Pairing code** — the code is the loudest element on the page, with a copy button, a live badge and a countdown rail.
+
+![Pair code state](docs/pair-code.png)
+
+**QR code** — the same flow without typing a number.
+
+![QR state](docs/qr-state.png)
+
+**Single-column layout** — the hero collapses below 900px and the card takes over.
+
+![Compact layout](docs/mobile.png)
 
 ---
 
 ## Run locally
 
 ```bash
-cd pairing-web
+git clone https://github.com/inyogeshwar/wa-pair-code.git
+cd wa-pair-code
 npm install
 cp .env.example .env      # optional — every value has a default
 npm start
@@ -36,67 +68,55 @@ npm start
 
 Open <http://localhost:3000>.
 
-Requirements: Node 20+ (Node 22 recommended).
-
----
-
-## Deploy free
-
-### Option A — Render (recommended, same as most pair-code sites)
-
-Render's free web service supports WebSockets, which Baileys needs.
-
-1. Push this folder to a GitHub repo:
-
-   ```bash
-   cd pairing-web
-   git init
-   git add .
-   git commit -m "wa pair code"
-   git branch -M main
-   git remote add origin https://github.com/<you>/<repo>.git
-   git push -u origin main
-   ```
-
-2. Render dashboard → **New** → **Blueprint** → select the repo → **Apply**.
-   `render.yaml` already declares the free plan, the health check and the
-   environment variables.
-
-   Or manually: **New** → **Web Service** → Node → Build `npm install` →
-   Start `npm start` → Plan **Free**.
-
-3. First request after idle can take ~50 seconds (the free instance sleeps).
-
-**Free-plan limits:** 512 MB RAM, sleeps after ~15 min of no traffic.
-`MAX_SESSIONS=2` is the practical ceiling.
-
-### Option B — Koyeb / any Docker host
-
-The repo includes a `Dockerfile`:
+**Requirements:** Node 20+ (Node 22 recommended).
 
 ```bash
+npm test                  # 4 unit tests, offline
 docker build -t wa-pair-code .
 docker run -p 3000:3000 -e MAX_SESSIONS=2 wa-pair-code
 ```
 
-On Koyeb: create a Web Service from the repo, expose port 3000, choose the
-free instance, health check `/healthz`.
+---
 
-### Option C — Hugging Face Spaces (Docker)
+## Deploy
 
-Create a Space with the **Docker** SDK, upload this folder, set the app port to
-`3000`. Works, but the free CPU tier is slow and sleeps.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/inyogeshwar/wa-pair-code)
+
+### Option A — Render (recommended)
+
+Render's free web service supports the long-lived WebSocket Baileys needs, and `render.yaml` already declares the plan, the health check and every environment variable.
+
+1. Click the button above (or **New → Blueprint** in the Render dashboard) and pick this repo.
+2. **Apply.** Render builds with `npm install` and starts with `npm start`.
+3. Done — the first request after idle can take ~50 seconds while the free instance wakes up.
+
+Prefer manual setup? **New → Web Service → Node**, build `npm install`, start `npm start`, plan **Free**, health check path `/healthz`.
+
+**Free-plan limits:** 512 MB RAM, sleeps after ~15 minutes without traffic. `MAX_SESSIONS=2` is the practical ceiling.
+
+### Option B — Docker, anywhere (Koyeb, Fly.io, a VPS)
+
+```bash
+docker build -t wa-pair-code .
+docker run -d -p 3000:3000 --init --restart unless-stopped \
+  -e MAX_SESSIONS=2 -e TRUST_PROXY=true wa-pair-code
+```
+
+On Koyeb: create a Web Service from the repo, expose port 3000, free instance, health check `/healthz`.
+
+### Option C — Hugging Face Spaces (Docker SDK)
+
+Create a Space with the **Docker** SDK, upload this folder, set the app port to `3000`. Works, but the free CPU tier is slow and also sleeps.
 
 ### Not suitable
 
-Vercel, Netlify, Cloudflare Workers — serverless functions cannot hold the
-long-lived WebSocket Baileys needs.
+Vercel, Netlify, Cloudflare Workers — serverless functions cannot hold the WebSocket that Baileys needs.
 
 ---
 
 ## API
 
-All responses are JSON. Errors look like `{ "error": "...", "code": "..." }`.
+All responses are JSON. Errors look like `{ "error": "…", "code": "…" }`.
 
 ### `POST /api/pair`
 
@@ -125,22 +145,21 @@ No body. Same shape, with `qr` set to a `data:image/png;base64,…` URL.
 
 ### `GET /api/session/:id`
 
-Current status. Poll this every ~2 s: it also returns refreshed QR images.
+Current status. Poll every ~2 s — it also returns refreshed QR images.
 
 `status` is one of `requesting`, `awaiting`, `paired`, `failed`.
 
 ### `GET /api/session/:id/download`
 
-Zip of the auth files. Only works when `status` is `paired`. Downloading also
-closes the server's socket so your bot can take over the credentials.
+Zip of the auth files. Only works when `status` is `paired`. Downloading also closes the server's socket so your bot can take over the credentials.
 
 ### `POST /api/session/:id/release`
 
 Closes the socket and deletes the temp auth files immediately.
 
-### `GET /healthz`
+### `GET /api/config` · `GET /healthz`
 
-`{ "ok": true, "uptime": 42, "sessions": 0 }`
+UI configuration and `{ "ok": true, "uptime": 42, "sessions": 0 }`.
 
 ---
 
@@ -149,18 +168,18 @@ Closes the socket and deletes the temp auth files immediately.
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
-| `BOT_NAME` | `WA Pair Code` | Page title |
+| `BOT_NAME` | `WA Pair Code` | Page title and brand |
 | `ALLOW_PAIRING` | `true` | Enable the pair-code tab |
 | `ALLOW_QR` | `true` | Enable the QR tab |
 | `MAX_SESSIONS` | `2` | Concurrent sockets (memory guard) |
-| `SESSION_TTL_MS` | `300000` | Wait time for the user to link |
+| `SESSION_TTL_MS` | `300000` | How long the user has to finish linking |
 | `PAIRED_KEEP_MS` | `600000` | How long a linked session stays downloadable |
 | `READY_TIMEOUT_MS` | `30000` | WhatsApp handshake timeout |
 | `RATE_LIMIT` | `5` | Requests per IP per window |
 | `RATE_WINDOW_MS` | `600000` | IP window |
 | `NUMBER_LIMIT` | `2` | Requests per number per window |
 | `NUMBER_WINDOW_MS` | `600000` | Number window |
-| `TRUST_PROXY` | `true` | Read client IP from `X-Forwarded-For` |
+| `TRUST_PROXY` | `true` | Read the client IP from `X-Forwarded-For` |
 | `LOG_LEVEL` | `info` | Server log level |
 
 ---
@@ -170,27 +189,57 @@ Closes the socket and deletes the temp auth files immediately.
 1. Unzip the download.
 2. Create an `auth/` folder next to your bot.
 3. Copy every `.json` file into it.
-4. Start your bot — it should connect without asking for a QR.
+4. Start your bot — it connects without asking for a QR or a code.
 
-Keep the zip and the files private. If you lose them, link the device again and
-remove the old entry in WhatsApp → Linked Devices.
+Keep the zip and the files private. If you lose them, link the device again and remove the stale entry in **WhatsApp → Linked Devices**.
+
+This service is the companion to **[whatsapp-ai-bot](https://github.com/inyogeshwar/whatsapp-ai-bot)**, but the zip it produces works with any Baileys v7 project that uses a multi-file auth state.
 
 ---
 
 ## How it works
 
-- `POST /api/pair` opens one temporary Baileys socket. It waits for the first
-  `connection.update` that carries a `qr` payload — Baileys' "socket is ready"
-  signal — and only then calls `requestPairingCode()`. Calling it earlier throws
-  `Connection Closed`.
+- `POST /api/pair` opens one temporary Baileys socket. It waits for the first `connection.update` carrying a `qr` payload — Baileys' "the socket is ready" signal — and only then calls `requestPairingCode()`. Calling it earlier throws `Connection Closed`.
 - The socket stays open until the user finishes linking or the session expires.
-- On `connection === 'open'` the session is marked `paired`; the download
-  endpoint zips the auth directory and closes the socket (without logging out,
-  which would invalidate the credentials).
-- A sweeper every 15 s deletes expired sessions and their temp directories.
+- On `connection === 'open'` the session is marked `paired`; the download endpoint zips the auth directory and closes the socket *without* logging out, which would invalidate the fresh credentials.
+- A sweeper runs every 15 s, deleting expired sessions and their temp directories.
+- The front-end polls `/api/session/:id` every 2 s and stops when the tab is hidden.
+
+---
+
+## Design system
+
+The UI is built from a written design contract, not from ad-hoc CSS. [`DESIGN.md`](./DESIGN.md) holds machine-readable tokens (colours, type scale, radii, spacing, components) plus the rationale for each decision — the same format described at [google-labs-code/design.md](https://github.com/google-labs-code/design.md), and it passes the reference linter:
+
+```bash
+npx @google/design.md lint DESIGN.md
+```
+
+The short version:
+
+| | |
+|---|---|
+| **Canvas** | `#08090A`, with two very low-opacity radial washes and a 64px grid |
+| **Surfaces** | A four-step charcoal ladder (`#0B0D0F` → `#1B1F23`) does the work that shadows usually do |
+| **Borders** | 1px white at 7% / 13% — hairlines, never solid grey |
+| **Accent** | A single emerald, `#2EE59D`, reserved for interaction and success |
+| **Type** | Inter for prose, JetBrains Mono for the pairing code and machine values |
+| **Motion** | State changes only; everything collapses under `prefers-reduced-motion` |
+
+The pairing code is deliberately the loudest object on the page — 34px mono with 5px tracking, grouped 4-4 so it reads from an arm's length away.
+
+---
+
+## Tests
+
+```bash
+npm test
+```
+
+Four offline unit tests over the pure helpers (`normalizeNumber`, `formatCode`, `maskNumber`) — no WhatsApp account required. GitHub Actions runs them on Node 20 and 22.
 
 ---
 
 ## License
 
-MIT. Use it on your own number.
+MIT — see [LICENSE](./LICENSE). Use it on your own number.

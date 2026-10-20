@@ -48,7 +48,10 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
-app.use(express.static(publicDir, { maxAge: '5m' }));
+// Static assets are not fingerprinted, so a long max-age would keep serving a
+// stale app.js after a deploy. Revalidate on every request instead: unchanged
+// files come back as a 304, which costs almost nothing.
+app.use(express.static(publicDir, { etag: true, lastModified: true, maxAge: 0 }));
 
 /** Wrap an async route so rejections reach the error handler. */
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);

@@ -3,133 +3,235 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#eef2f7" />
+    <meta name="theme-color" content="#08090A" />
     <meta
       name="description"
-      content="Generate a WhatsApp pairing code or QR to link a device, then download the session files for your bot."
+      content="Generate a WhatsApp pairing code or QR, then download the auth files for your Baileys bot."
     />
-    <title>WA Pair Code — Link your WhatsApp device</title>
+    <title>WA Pair Code — Link a WhatsApp device</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0b0f'/%3E%3Crect x='8' y='11' width='16' height='12' rx='4' fill='none' stroke='white' stroke-width='2'/%3E%3Ccircle cx='13' cy='17' r='1.6' fill='white'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='white'/%3E%3Cpath d='M16 7v4' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308090A'/%3E%3Crect x='8' y='11' width='16' height='12' rx='4' fill='none' stroke='%232EE59D' stroke-width='2'/%3E%3Ccircle cx='13' cy='17' r='1.6' fill='%232EE59D'/%3E%3Ccircle cx='19' cy='17' r='1.6' fill='%232EE59D'/%3E%3Cpath d='M16 7v4' stroke='%232EE59D' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+      rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="card">
-      <header class="brand">
-        <div class="logo" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+    <div class="backdrop" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <rect x="4" y="8" width="16" height="12" rx="4" />
             <path d="M12 3.5v4.5" />
             <circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none" />
             <circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none" />
             <path d="M2 13v3M22 13v3" />
           </svg>
-        </div>
-        <h1 id="app-title">WA Pair Code</h1>
-        <p class="subtitle">Link your WhatsApp device</p>
-      </header>
+        </span>
+        <span class="brand__text">
+          <strong id="app-title">WA Pair Code</strong>
+          <span>session generator</span>
+        </span>
+      </a>
 
-      <div class="tabs" role="tablist" aria-label="Login method">
-        <button
-          class="tab is-active"
-          id="tab-pair"
-          role="tab"
-          aria-selected="true"
-          aria-controls="panel-pair"
-          data-mode="pair"
+      <nav class="topbar__links" aria-label="Links">
+        <button class="navlink" id="api-button" type="button">API</button>
+        <a
+          class="navlink"
+          href="https://github.com/inyogeshwar/wa-pair-code"
+          target="_blank"
+          rel="noreferrer noopener"
         >
-          🔑 Pair Code
-        </button>
-        <button
-          class="tab"
-          id="tab-qr"
-          role="tab"
-          aria-selected="false"
-          aria-controls="panel-qr"
-          data-mode="qr"
-        >
-          ▦ QR Code
-        </button>
-      </div>
+          GitHub
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17 17 7M9 7h8v8" />
+          </svg>
+        </a>
+      </nav>
+    </header>
 
-      <section class="panel" id="panel-pair" role="tabpanel" aria-labelledby="tab-pair">
-        <label class="label" for="number">Enter your WhatsApp number with country code</label>
-        <input
-          class="input"
-          id="number"
-          type="tel"
-          inputmode="numeric"
-          autocomplete="tel"
-          placeholder="+91 98765 43210"
-          spellcheck="false"
-        />
-        <button class="btn btn-primary" id="start-pair" type="button">Generate Pair Code</button>
-      </section>
-
-      <section class="panel is-hidden" id="panel-qr" role="tabpanel" aria-labelledby="tab-qr">
-        <p class="hint">A QR code will appear below. Scan it from WhatsApp → Linked Devices.</p>
-        <button class="btn btn-primary" id="start-qr" type="button">Show QR Code</button>
-      </section>
-
-      <section class="result is-hidden" id="result" aria-live="polite">
-        <div class="code is-hidden" id="code-box">
-          <span id="code-value"></span>
-        </div>
-
-        <div class="qr is-hidden" id="qr-box">
-          <img id="qr-image" alt="WhatsApp pairing QR code" width="340" height="340" />
-        </div>
-
-        <div class="meta">
-          <span class="timer" id="timer"></span>
-          <button class="btn btn-copy is-hidden" id="copy" type="button">📋 Copy code</button>
-        </div>
-
-        <ol class="steps" id="steps"></ol>
-      </section>
-
-      <div class="download is-hidden" id="download-box">
-        <p class="download-title">✅ Device linked</p>
-        <p class="hint">
-          Download the session files and place the <code>.json</code> files in your bot's
-          <code>auth/</code> folder. Keep them private — they are your login.
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span> WhatsApp session generator</p>
+        <h1>Link a device.<br /><span class="grad">Take the session.</span></h1>
+        <p class="hero__lede">
+          Generate a pairing code or scan a QR, then download the auth files for your Baileys
+          bot. Sessions live in memory and expire on their own.
         </p>
-        <a class="btn btn-primary" id="download" href="#">⬇ Download session</a>
-        <button class="btn btn-ghost" id="reset" type="button">Start over</button>
-      </div>
 
-      <p class="status" id="status" role="status"></p>
+        <ul class="features" role="list">
+          <li>
+            <span class="features__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+            </span>
+            <div>
+              <b>Pair code or QR</b>
+              <span>Two ways to link, one small API.</span>
+            </div>
+          </li>
+          <li>
+            <span class="features__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+            </span>
+            <div>
+              <b>Session download</b>
+              <span>Drop the files into your bot's <code>auth/</code>.</span>
+            </div>
+          </li>
+          <li>
+            <span class="features__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.4 8.2 8 9 4.6-.8 8-4 8-9V6l-8-3Z" /></svg>
+            </span>
+            <div>
+              <b>Nothing persisted</b>
+              <span>No database. Temp files are wiped on expiry.</span>
+            </div>
+          </li>
+        </ul>
 
-      <footer class="footer">
-        <button class="link" id="api-button" type="button">API</button>
-        <span aria-hidden="true">·</span>
-        <span id="footer-name">WA Pair Code</span>
-      </footer>
+        <p class="hero__foot">
+          Codes are valid for about two minutes. Never share a pairing code or a downloaded
+          session with anyone.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="card-title">
+        <div class="card__head">
+          <h2 id="card-title">Link your device</h2>
+          <p id="card-sub">Enter your number to receive a code.</p>
+        </div>
+
+        <div class="segmented" id="segmented" data-mode="pair" role="tablist" aria-label="Login method">
+          <span class="segmented__thumb" aria-hidden="true"></span>
+          <button
+            class="segmented__btn is-active"
+            id="tab-pair"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-pair"
+            data-mode="pair"
+          >
+            Pair code
+          </button>
+          <button
+            class="segmented__btn"
+            id="tab-qr"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-qr"
+            data-mode="qr"
+          >
+            QR code
+          </button>
+        </div>
+
+        <div class="panel" id="panel-pair" role="tabpanel" aria-labelledby="tab-pair">
+          <label class="field" for="number">
+            <span class="field__label">WhatsApp number</span>
+            <span class="field__control">
+              <span class="field__prefix" aria-hidden="true">+</span>
+              <input
+                class="field__input"
+                id="number"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel-national"
+                placeholder="91 98765 43210"
+                spellcheck="false"
+              />
+            </span>
+            <span class="field__hint">Country code, then your number. Digits only.</span>
+          </label>
+
+          <button class="btn btn--primary" id="start-pair" type="button">
+            Generate pairing code
+          </button>
+        </div>
+
+        <div class="panel is-hidden" id="panel-qr" role="tabpanel" aria-labelledby="tab-qr">
+          <p class="panel__note" id="qr-note">
+            We will render a QR code right here. Scan it from WhatsApp → Linked Devices.
+          </p>
+          <button class="btn btn--primary" id="start-qr" type="button">Generate QR code</button>
+        </div>
+
+        <div class="result is-hidden" id="result" aria-live="polite">
+          <div class="result__bar">
+            <span class="badge" id="result-badge">Waiting</span>
+            <span class="countdown" id="timer"></span>
+          </div>
+
+          <div class="code is-hidden" id="code-box">
+            <code id="code-value"></code>
+            <button class="icon-btn" id="copy" type="button" aria-label="Copy pairing code" title="Copy code">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
+            </button>
+          </div>
+
+          <div class="qr is-hidden" id="qr-box">
+            <img id="qr-image" alt="WhatsApp pairing QR code" width="280" height="280" />
+          </div>
+
+          <div class="progress" aria-hidden="true">
+            <span class="progress__fill" id="progress-bar"></span>
+          </div>
+
+          <ol class="steps" id="steps"></ol>
+        </div>
+
+        <div class="success is-hidden" id="download-box">
+          <span class="success__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+          </span>
+          <h3 class="success__title">Device linked</h3>
+          <p class="success__text">
+            Download the auth files and place the <code>.json</code> files in your bot's
+            <code>auth/</code> folder. Keep them private — they are your login.
+          </p>
+          <a class="btn btn--primary" id="download" href="#">Download session</a>
+          <button class="btn btn--ghost" id="reset" type="button">Start over</button>
+        </div>
+
+        <div class="alert is-hidden" id="alert" role="alert"></div>
+
+        <div class="card__foot">
+          <span class="pulse" aria-hidden="true"></span>
+          <span>Sessions auto-delete after 5 minutes</span>
+        </div>
+      </section>
     </main>
+
+    <footer class="site-foot">
+      <span>Built with Baileys v7</span>
+      <span aria-hidden="true">·</span>
+      <span>No accounts, no database</span>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <dialog class="dialog" id="api-dialog">
       <h2>HTTP API</h2>
-      <p class="hint">Same endpoints the page uses. JSON in, JSON out.</p>
+      <p class="dialog__sub">The same endpoints this page uses. JSON in, JSON out.</p>
       <dl class="api-list">
         <dt><code>POST /api/pair</code></dt>
-        <dd><code>{ "number": "919876543210" }</code> → session with <code>code</code></dd>
+        <dd><code>{ "number": "919876543210" }</code> → session with a <code>code</code></dd>
         <dt><code>POST /api/qr</code></dt>
         <dd>→ session with a <code>qr</code> PNG data URL</dd>
         <dt><code>GET /api/session/:id</code></dt>
-        <dd>→ current status, refreshed QR, expiry</dd>
+        <dd>→ status, refreshed QR, expiry</dd>
         <dt><code>GET /api/session/:id/download</code></dt>
         <dd>→ zip of the auth files (only when <code>status=paired</code>)</dd>
       </dl>
-      <button class="btn btn-ghost" id="api-close" type="button">Close</button>
+      <button class="btn btn--ghost" id="api-close" type="button">Close</button>
     </dialog>
 
     <script type="module" src="/app.js"></script>
