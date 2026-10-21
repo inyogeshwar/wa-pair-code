@@ -19,9 +19,18 @@
     "baileys",
     "pairing-code",
     "qr",
-    "session-generator"
+    "session-generator",
+    "whatsapp-bot"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inyogeshwar/wa-pair-code.git"
+  },
+  "homepage": "https://wa-pair-code.onrender.com",
+  "bugs": {
+    "url": "https://github.com/inyogeshwar/wa-pair-code/issues"
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "dotenv": "^16.4.5",

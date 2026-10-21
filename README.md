@@ -8,9 +8,10 @@ Type a number, get an 8-character pairing code, enter it in WhatsApp, then downl
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A520-3c873a?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
 [![Baileys](https://img.shields.io/badge/baileys-7.0.0--rc14-2ee59d?style=flat-square)](https://github.com/WhiskeySockets/Baileys)
-[![Tests](https://img.shields.io/badge/tests-4%20passing-2ee59d?style=flat-square)](#tests)
+[![Tests](https://img.shields.io/badge/tests-6%20passing-2ee59d?style=flat-square)](#tests)
 [![Deploy](https://img.shields.io/badge/deploy-render-6f7880?style=flat-square)](#deploy)
 [![License](https://img.shields.io/badge/license-MIT-6f7880?style=flat-square)](./LICENSE)
+[![Companion](https://img.shields.io/badge/companion-whatsapp--ai--bot-2ee59d?style=flat-square)](https://github.com/inyogeshwar/whatsapp-ai-bot)
 
 ![WA Pair Code](docs/pair-code.png)
 
@@ -27,16 +28,29 @@ Type a number, get an 8-character pairing code, enter it in WhatsApp, then downl
 
 ## Contents
 
+- [Related projects](#related-projects)
 - [Screenshots](#screenshots)
 - [Run locally](#run-locally)
 - [Deploy](#deploy)
 - [API](#api)
 - [Configuration](#configuration)
 - [Using the downloaded session](#using-the-downloaded-session)
+- [Ban risk](#ban-risk)
 - [How it works](#how-it-works)
 - [Design system](#design-system)
 - [Tests](#tests)
 - [License](#license)
+
+---
+
+## Related projects
+
+| | |
+|---|---|
+| **[whatsapp-ai-bot](https://github.com/inyogeshwar/whatsapp-ai-bot)** | The bot this service was built for: 34 commands, group administration, link moderation, and an optional local AI layer. Generate a session here, unzip it into the bot's `auth/` folder, start it. |
+| **Reference deployment** | <https://wa-pair-code.onrender.com> — free Render tier, so the first request after idle can take ~50 seconds while the instance wakes. Deploy your own if you expect real traffic. |
+
+The zip works with any Baileys v7 project that uses a multi-file auth state, but the two repositories are designed to fit together: **`wa-pair-code` links the device, `whatsapp-ai-bot` uses the result.**
 
 ---
 
@@ -215,6 +229,20 @@ This service is the companion to **[whatsapp-ai-bot](https://github.com/inyogesh
 
 ---
 
+## Ban risk
+
+This service only **links** a device — it never sends a message. The ban risk comes from what the linked session does next. Worth knowing before you hand the zip to a bot:
+
+- **Unofficial clients violate WhatsApp's Terms.** Baileys (used here and by the bot) is not an official API. Enforcement is uneven, but it is real.
+- **Bans come from behaviour, not from linking.** Bulk or unsolicited messaging, scraped contact lists, mass group invites, and a flood of *Report* / *Block* taps are what get numbers restricted.
+- **A new number sending at volume is flagged fast.** Warm it up with ordinary chats first.
+- **Failed pairing is not a ban.** Expired codes, `401`, *"Couldn't link device"* and *"try again later"* are session or rate-limit issues. If WhatsApp on the phone works normally, the number is fine.
+- **Use a separate number** for anything automated, not your personal primary.
+
+The full table, the safe-usage checklist and the appeal process live in the bot repo: [Responsible use & ban risk](https://github.com/inyogeshwar/whatsapp-ai-bot#responsible-use--ban-risk).
+
+---
+
 ## How it works
 
 - `POST /api/pair` opens one temporary Baileys socket. It waits for the first `connection.update` carrying a `qr` payload — Baileys' "the socket is ready" signal — and only then calls `requestPairingCode()`. Calling it earlier throws `Connection Closed`.
@@ -262,7 +290,7 @@ Two details the linter forced, and both were real bugs:
 npm test
 ```
 
-Four offline unit tests over the pure helpers (`normalizeNumber`, `formatCode`, `maskNumber`) — no WhatsApp account required. GitHub Actions runs them on Node 20 and 22.
+Six offline unit tests over the pure helpers (`normalizeNumber`, `formatCode`, `maskNumber`) and the live-slot accounting — no WhatsApp account required. GitHub Actions runs them on Node 20 and 22.
 
 ---
 
