@@ -37,3 +37,13 @@ export function maskNumber(number) {
   if (value.length <= 4) return '****';
   return `${'*'.repeat(Math.min(value.length - 4, 8))}${value.slice(-4)}`;
 }
+
+/**
+ * Does this session still need a live socket?
+ *
+ * A linked session only keeps its auth files so it can be downloaded; it must
+ * not occupy one of the `MAX_SESSIONS` socket slots.
+ */
+export function isLiveStatus(status) {
+  return status === 'requesting' || status === 'awaiting';
+}

@@ -53,6 +53,12 @@ export const config = Object.freeze({
    */
   maxSessions: int(process.env, 'MAX_SESSIONS', 2, { min: 1, max: 10 }),
 
+  /**
+   * Hard cap on sessions kept on disk. Paired sessions drop their socket but
+   * stay downloadable for PAIRED_KEEP_MS, so they do not use a socket slot.
+   */
+  maxStoredSessions: int(process.env, 'MAX_STORED_SESSIONS', 40, { min: 1, max: 1000 }),
+
   /** How long a session may wait for the user to pair (ms). */
   sessionTtlMs: int(process.env, 'SESSION_TTL_MS', 5 * 60_000, { min: 60_000, max: 15 * 60_000 }),
   /** How long a PAIRED session stays downloadable (ms). */

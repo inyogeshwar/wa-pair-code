@@ -159,7 +159,8 @@ Closes the socket and deletes the temp auth files immediately.
 
 ### `GET /api/config` · `GET /healthz`
 
-UI configuration and `{ "ok": true, "uptime": 42, "sessions": 0 }`.
+UI configuration and `{ "ok": true, "uptime": 42, "sessions": 3, "slots": 1, "maxSlots": 2 }`.
+`sessions` counts everything kept on disk; `slots` counts only sessions that still need a socket.
 
 ---
 
@@ -172,6 +173,7 @@ UI configuration and `{ "ok": true, "uptime": 42, "sessions": 0 }`.
 | `ALLOW_PAIRING` | `true` | Enable the pair-code tab |
 | `ALLOW_QR` | `true` | Enable the QR tab |
 | `MAX_SESSIONS` | `2` | Concurrent sockets (memory guard) |
+| `MAX_STORED_SESSIONS` | `40` | Hard cap on sessions kept on disk, paired ones included |
 | `SESSION_TTL_MS` | `300000` | How long the user has to finish linking |
 | `PAIRED_KEEP_MS` | `600000` | How long a linked session stays downloadable |
 | `READY_TIMEOUT_MS` | `30000` | WhatsApp handshake timeout |
@@ -200,8 +202,9 @@ This service is the companion to **[whatsapp-ai-bot](https://github.com/inyogesh
 ## How it works
 
 - `POST /api/pair` opens one temporary Baileys socket. It waits for the first `connection.update` carrying a `qr` payload — Baileys' "the socket is ready" signal — and only then calls `requestPairingCode()`. Calling it earlier throws `Connection Closed`.
-- The socket stays open until the user finishes linking or the session expires.
-- On `connection === 'open'` the session is marked `paired`; the download endpoint zips the auth directory and closes the socket *without* logging out, which would invalidate the fresh credentials.
+- Neither WhatsApp nor Baileys keeps that socket alive on its own: WhatsApp drops it after its last QR ref (~2 minutes) and again with `515` right after a device links. The manager reopens it in both cases, so the QR stays scannable for the whole session.
+- On `connection === 'open'` the session is marked `paired`; 1.5 s later the socket is closed *without* logging out, which would invalidate the fresh credentials. Only the auth files remain, so the slot is free for the next visitor immediately.
+- `MAX_SESSIONS` limits sockets, not downloads: linked sessions stay downloadable for `PAIRED_KEEP_MS` without occupying a slot. `MAX_STORED_SESSIONS` caps the files kept on disk.
 - A sweeper runs every 15 s, deleting expired sessions and their temp directories.
 - The front-end polls `/api/session/:id` every 2 s and stops when the tab is hidden.
 

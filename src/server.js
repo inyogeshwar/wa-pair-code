@@ -21,6 +21,7 @@ import { maskNumber, normalizeNumber } from './util.js';
 import {
   SessionError,
   activeCount,
+  activeSlots,
   buildSessionArchive,
   createSession,
   destroyAll,
@@ -105,7 +106,13 @@ function allowNumber(number) {
 
 // ── Routes ──────────────────────────────────────────────────────────
 app.get('/healthz', (req, res) => {
-  res.json({ ok: true, uptime: Math.round(process.uptime()), sessions: activeCount() });
+  res.json({
+    ok: true,
+    uptime: Math.round(process.uptime()),
+    sessions: activeCount(),
+    slots: activeSlots(),
+    maxSlots: config.maxSessions,
+  });
 });
 
 app.get('/api/config', (req, res) => {

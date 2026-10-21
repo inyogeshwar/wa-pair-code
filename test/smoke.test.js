@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatCode, maskNumber, normalizeNumber } from '../src/util.js';
+import { formatCode, isLiveStatus, maskNumber, normalizeNumber } from '../src/util.js';
 
 test('normalizeNumber accepts common formatting', () => {
   assert.equal(normalizeNumber('+91 98765 43210'), '919876543210');
@@ -37,4 +37,12 @@ test('maskNumber keeps only the tail', () => {
   assert.equal(maskNumber('919876543210'), '********3210');
   assert.equal(maskNumber('1234'), '****');
   assert.equal(maskNumber(''), '****');
+});
+
+test('isLiveStatus only counts sessions that still need a socket', () => {
+  assert.equal(isLiveStatus('requesting'), true);
+  assert.equal(isLiveStatus('awaiting'), true);
+  assert.equal(isLiveStatus('paired'), false, 'a paired session only keeps files on disk');
+  assert.equal(isLiveStatus('failed'), false);
+  assert.equal(isLiveStatus(undefined), false);
 });

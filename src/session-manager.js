@@ -33,7 +33,7 @@ import os from 'node:os';
 
 import { config } from './config.js';
 import { log } from './logger.js';
-import { formatCode } from './util.js';
+import { formatCode, isLiveStatus } from './util.js';
 
 /** Baileys is chatty on stdout; keep it quiet unless asked. */
 const baileysLog = pino({ level: process.env.BAILEYS_LOG_LEVEL ?? 'silent' });
@@ -53,11 +53,23 @@ export class SessionError extends Error {
 }
 
 /**
+ * Sessions that currently need a socket. Waiting sessions are live slots;
+ * paired sessions only keep files on disk so the user can download them.
+ */
+export function activeSlots() {
+  let count = 0;
+  for (const session of sessions.values()) {
+    if (isLiveStatus(session.status)) count += 1;
+  }
+  return count;
+}
+
+/**
  * Create a session and wait until it has a pairing code or a QR image.
  * Throws SessionError on capacity, timeout, or WhatsApp refusal.
  */
 export async function createSession({ number = null, mode }) {
-  if (sessions.size >= config.maxSessions) {
+  if (sessions.size >= config.maxStoredSessions || activeSlots() >= config.maxSessions) {
     throw new SessionError(
       'The server is handling too many sessions right now. Please try again in a minute.',
       'BUSY',
@@ -80,10 +92,12 @@ export async function createSession({ number = null, mode }) {
     released: false,
   };
 
-  await mkdir(session.authDir, { recursive: true });
+  // Reserve the slot before the first await: two requests arriving together
+  // must not both pass the capacity check above.
   sessions.set(session.id, session);
 
   try {
+    await mkdir(session.authDir, { recursive: true });
     await openSocket(session);
   } catch (error) {
     await destroySession(session.id);
@@ -216,6 +230,14 @@ async function connectSocket(session, ctx, attempt) {
         session.qrDataUrl = null;
         log.info({ session: session.id, me: session.number ?? 'linked' }, 'device linked');
         ctx.ready();
+
+        // The auth directory is everything the download needs. Let the
+        // handshake settle, then drop the socket so this slot is free for the
+        // next visitor while the session stays downloadable.
+        setTimeout(() => {
+          if (session.status !== 'paired') return;
+          closeSocket(session);
+        }, 1500).unref?.();
       }
 
       // ── Closed: give up, or reopen and keep the code fresh ─────────
