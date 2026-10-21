@@ -87,12 +87,14 @@ docker run -p 3000:3000 -e MAX_SESSIONS=2 wa-pair-code
 Render's free web service supports the long-lived WebSocket Baileys needs, and `render.yaml` already declares the plan, the health check and every environment variable.
 
 1. Click the button above (or **New → Blueprint** in the Render dashboard) and pick this repo.
-2. **Apply.** Render builds with `npm install` and starts with `npm start`.
+2. **Apply.** Render builds with `npm ci` and starts with `npm start`.
 3. Done — the first request after idle can take ~50 seconds while the free instance wakes up.
 
-Prefer manual setup? **New → Web Service → Node**, build `npm install`, start `npm start`, plan **Free**, health check path `/healthz`.
+Prefer manual setup? **New → Web Service → Node**, build `npm ci`, start `npm start`, plan **Free**, health check path `/healthz`.
 
 **Free-plan limits:** 512 MB RAM, sleeps after ~15 minutes without traffic. `MAX_SESSIONS=2` is the practical ceiling.
+
+**Keep it awake:** one free [cron-job.org](https://cron-job.org) job that sends `GET https://<your-service>.onrender.com/healthz` every 5 minutes stops the sleep. The free tier is enough: 30 s timeout, 64 KB response cap and 25 consecutive failures before the job is disabled — `/healthz` returns ~80 bytes. The first ping after a cold start can hit the 30 s timeout and still wake the instance. Staying up 24/7 spends ~730 of Render's 750 free instance-hours per month.
 
 ### Option B — Docker, anywhere (Koyeb, Fly.io, a VPS)
 
