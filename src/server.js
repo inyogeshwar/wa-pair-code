@@ -15,9 +15,8 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pino from 'pino';
-
 import { config } from './config.js';
+import { log } from './logger.js';
 import { maskNumber, normalizeNumber } from './util.js';
 import {
   SessionError,
@@ -30,8 +29,6 @@ import {
   publicView,
   startSweeper,
 } from './session-manager.js';
-
-const log = pino({ level: process.env.LOG_LEVEL ?? 'info' });
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(here, '..', 'public');

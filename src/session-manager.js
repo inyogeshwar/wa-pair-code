@@ -32,6 +32,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 import { config } from './config.js';
+import { log } from './logger.js';
 import { formatCode } from './util.js';
 
 /** Baileys is chatty on stdout; keep it quiet unless asked. */
@@ -92,8 +93,71 @@ export async function createSession({ number = null, mode }) {
   return publicView(session);
 }
 
+/** How many times one session may reopen its socket before giving up. */
+const MAX_RECONNECTS = 10;
+
 /** Open the socket and resolve as soon as we have a code / QR / open session. */
 async function openSocket(session) {
+  let settled = false;
+  let resolveReady;
+  let rejectReady;
+
+  const ready = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+
+  let timer = null;
+
+  const ctx = {
+    /** First QR / code / open arrived — the HTTP request can be answered. */
+    ready() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolveReady();
+    },
+    fail(error) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      rejectReady(error);
+    },
+    /** Give the next connection attempt a fresh window. */
+    rearm() {
+      if (settled) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        ctx.fail(
+          new SessionError(
+            'WhatsApp did not respond in time. Please try again.',
+            'TIMEOUT',
+            504
+          )
+        );
+      }, config.readyTimeoutMs);
+    },
+  };
+
+  ctx.rearm();
+  await connectSocket(session, ctx, 0);
+  await ready;
+}
+
+/**
+ * Create one socket and wire its lifecycle.
+ *
+ * Baileys never reconnects on its own. WhatsApp drops the socket as soon as
+ * it has handed out its last QR ref (roughly two minutes) and again with 515
+ * once a device links, so reopening it is the caller's job. Without that the
+ * page keeps showing a QR that WhatsApp has already invalidated — exactly the
+ * "couldn't log in" the phone reports when it scans a dead code — and a
+ * successful pairing never reaches the "paired" state the download needs.
+ */
+async function connectSocket(session, ctx, attempt) {
+  // The session may have been released or swept while the retry was queued.
+  if (!sessions.has(session.id)) return;
+
   const { state, saveCreds } = await useMultiFileAuthState(session.authDir);
 
   const sock = makeWASocket({
@@ -115,29 +179,6 @@ async function openSocket(session) {
   session.sock = sock;
   sock.ev.on('creds.update', saveCreds);
 
-  let settled = false;
-  let resolveReady;
-  let rejectReady;
-
-  const ready = new Promise((resolve, reject) => {
-    resolveReady = resolve;
-    rejectReady = reject;
-  });
-
-  const finish = (settle, value) => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(timer);
-    settle(value);
-  };
-
-  const timer = setTimeout(() => {
-    finish(
-      rejectReady,
-      new SessionError('WhatsApp did not respond in time. Please try again.', 'TIMEOUT', 504)
-    );
-  }, config.readyTimeoutMs);
-
   sock.ev.on('connection.update', async (update) => {
     try {
       const { connection, lastDisconnect, qr } = update;
@@ -151,18 +192,18 @@ async function openSocket(session) {
             errorCorrectionLevel: 'M',
           }).catch(() => null);
           if (session.status === 'requesting') session.status = 'awaiting';
-          finish(resolveReady);
+          ctx.ready();
         } else if (session.mode === 'pair' && !session.code) {
           try {
             const raw = await sock.requestPairingCode(session.number);
             session.code = formatCode(raw);
             session.status = 'awaiting';
-            finish(resolveReady);
+            ctx.ready();
           } catch {
             session.status = 'failed';
             session.error =
               'WhatsApp refused the pairing request. Check the number (with country code) and try again.';
-            finish(rejectReady, new SessionError(session.error, 'PAIR_FAILED', 502));
+            ctx.fail(new SessionError(session.error, 'PAIR_FAILED', 502));
           }
         }
       }
@@ -173,25 +214,61 @@ async function openSocket(session) {
         session.pairedAt = Date.now();
         session.expiresAt = Date.now() + config.pairedKeepMs;
         session.qrDataUrl = null;
-        finish(resolveReady);
+        log.info({ session: session.id, me: session.number ?? 'linked' }, 'device linked');
+        ctx.ready();
       }
 
-      // ── Permanent failure ──────────────────────────────────────────
+      // ── Closed: give up, or reopen and keep the code fresh ─────────
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
+
         if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
           session.status = 'failed';
           session.error = 'WhatsApp rejected this session. Generate a new code.';
-          finish(rejectReady, new SessionError(session.error, 'LOGGED_OUT', 409));
+          ctx.fail(new SessionError(session.error, 'LOGGED_OUT', 409));
+          return;
         }
-        // Transient closes are handled by Baileys' own reconnect loop.
+
+        // Paired, released, or swept away — nothing left to keep alive.
+        if (session.status === 'paired' || !sessions.has(session.id)) return;
+
+        const canRetry =
+          attempt < MAX_RECONNECTS &&
+          session.status !== 'failed' &&
+          Date.now() < session.expiresAt;
+
+        if (!canRetry) {
+          if (session.status !== 'failed') {
+            session.status = 'failed';
+            session.error = 'WhatsApp stopped answering. Generate a new code.';
+          }
+          return;
+        }
+
+        // The QR on screen belongs to the socket that just died. Drop it so
+        // nobody scans a dead code, then open a fresh connection.
+        session.qrDataUrl = null;
+        if (session.mode === 'qr') session.status = 'requesting';
+        log.info(
+          {
+            session: session.id,
+            mode: session.mode,
+            statusCode: statusCode ?? null,
+            attempt: attempt + 1,
+          },
+          'socket closed; reopening'
+        );
+        ctx.rearm();
+
+        setTimeout(() => {
+          if (session.status === 'paired' || !sessions.has(session.id)) return;
+          connectSocket(session, ctx, attempt + 1).catch(() => {});
+        }, 500);
       }
     } catch {
       // A listener must never throw into the socket's emitter.
     }
   });
-
-  await ready;
 }
 
 /** Public, secret-free representation sent to the browser. */
