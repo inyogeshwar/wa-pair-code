@@ -6,6 +6,8 @@
  * and no database.
  */
 import 'dotenv/config';
+import os from 'node:os';
+import path from 'node:path';
 
 /** Read a trimmed string or return the default. */
 function str(env, key, fallback = '') {
@@ -34,10 +36,29 @@ function bool(env, key, fallback) {
   throw new Error(`${key} must be true or false (got "${raw}").`);
 }
 
+/** Read an integer from the first key that is actually set. */
+function intFrom(env, keys, fallback, options) {
+  for (const key of keys) {
+    if (str(env, key) !== '') return int(env, key, fallback, options);
+  }
+  return fallback;
+}
+
 export const config = Object.freeze({
-  /** HTTP port. Render/Heroku inject PORT automatically. */
-  port: int(process.env, 'PORT', 3000, { min: 1, max: 65535 }),
+  /**
+   * HTTP port. Render/Heroku/Fly inject PORT; Botkeep injects SERVER_PORT.
+   * Listening on the assigned port is what makes the panel's Domains routing
+   * reach the app.
+   */
+  port: intFrom(process.env, ['PORT', 'SERVER_PORT'], 3000, { min: 1, max: 65535 }),
   host: str(process.env, 'HOST', '0.0.0.0'),
+
+  /**
+   * Writable directory for the temporary auth folders. Defaults to the OS
+   * temp dir; point AUTH_DIR somewhere else when the platform keeps /tmp
+   * read-only or on a tiny filesystem.
+   */
+  authDir: str(process.env, 'AUTH_DIR', path.join(os.tmpdir(), 'wa-pair-code')),
 
   /** Shown in the page title and header. */
   botName: str(process.env, 'BOT_NAME', 'WA Pair Code'),

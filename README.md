@@ -71,7 +71,7 @@ Open <http://localhost:3000>.
 **Requirements:** Node 20+ (Node 22 recommended).
 
 ```bash
-npm test                  # 4 unit tests, offline
+npm test                  # 6 unit tests, offline
 docker build -t wa-pair-code .
 docker run -p 3000:3000 -e MAX_SESSIONS=2 wa-pair-code
 ```
@@ -107,6 +107,18 @@ On Koyeb: create a Web Service from the repo, expose port 3000, free instance, h
 ### Option C — Hugging Face Spaces (Docker SDK)
 
 Create a Space with the **Docker** SDK, upload this folder, set the app port to `3000`. Works, but the free CPU tier is slow and also sleeps.
+
+### Option D — Botkeep
+
+Botkeep runs Node.js workloads 24/7 without a renewal timer. Its panel injects **`SERVER_PORT`** instead of `PORT`; the app reads both, so no code change is needed.
+
+1. **Create → Application → Node.js**, connect this repo, start command `npm start`.
+2. Give the workload **512 MB RAM** (the app idles at ~115 MB and adds ~20 MB per live session).
+3. Environment: `MAX_SESSIONS=6`, `MAX_STORED_SESSIONS=40`, `TRUST_PROXY=true`.
+4. Open the **Network** tab, note the assigned port, then add a **Domain** in the panel — HTTP access is routed through Domains, not raw ports.
+5. Health check: `/healthz`.
+
+The Founder plan (5 slots, 2 GB RAM) can run one instance with `MAX_SESSIONS=8` or several smaller ones — but keep a single instance unless you add sticky routing, because sessions live in that process's memory.
 
 ### Not suitable
 
@@ -168,7 +180,9 @@ UI configuration and `{ "ok": true, "uptime": 42, "sessions": 3, "slots": 1, "ma
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PORT` | `3000` | HTTP port |
+| `PORT` / `SERVER_PORT` | `3000` | HTTP port (Botkeep injects `SERVER_PORT`) |
+| `HOST` | `0.0.0.0` | Bind address |
+| `AUTH_DIR` | OS temp dir | Where temporary auth folders live |
 | `BOT_NAME` | `WA Pair Code` | Page title and brand |
 | `ALLOW_PAIRING` | `true` | Enable the pair-code tab |
 | `ALLOW_QR` | `true` | Enable the QR tab |

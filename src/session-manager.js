@@ -29,7 +29,6 @@ import pino from 'pino';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
 
 import { config } from './config.js';
 import { log } from './logger.js';
@@ -85,7 +84,7 @@ export async function createSession({ number = null, mode }) {
     code: null,
     qrDataUrl: null,
     error: null,
-    authDir: path.join(os.tmpdir(), 'wa-pair-code', randomUUID()),
+    authDir: path.join(config.authDir, randomUUID()),
     sock: null,
     createdAt: Date.now(),
     expiresAt: Date.now() + config.sessionTtlMs,
