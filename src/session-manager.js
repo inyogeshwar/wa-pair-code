@@ -262,7 +262,14 @@ async function connectSocket(session, ctx, attempt) {
 
         setTimeout(() => {
           if (session.status === 'paired' || !sessions.has(session.id)) return;
-          connectSocket(session, ctx, attempt + 1).catch(() => {});
+          // Flush the credentials a just-finished pairing produced before the
+          // next socket reads them back from disk.
+          saveCreds()
+            .catch(() => {})
+            .finally(() => {
+              if (session.status === 'paired' || !sessions.has(session.id)) return;
+              connectSocket(session, ctx, attempt + 1).catch(() => {});
+            });
         }, 500);
       }
     } catch {
