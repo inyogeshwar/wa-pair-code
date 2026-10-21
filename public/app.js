@@ -167,6 +167,7 @@ function resetUi({ release = true } = {}) {
   show('result', false);
   show('download-box', false);
   show('code-box', false);
+  show('code-note', false);
   show('qr-box', false);
   show('qr-note', true);
   $('qr-image').removeAttribute('src');
@@ -210,10 +211,12 @@ function renderSession(session) {
   if (session.mode === 'pair') {
     show('qr-box', false);
     show('code-box', Boolean(session.code));
+    show('code-note', Boolean(session.code));
     show('copy', Boolean(session.code));
     if (session.code) $('code-value').textContent = session.code;
   } else {
     show('code-box', false);
+    show('code-note', false);
     show('copy', false);
     show('qr-box', Boolean(session.qr));
     if (session.qr) $('qr-image').src = session.qr;

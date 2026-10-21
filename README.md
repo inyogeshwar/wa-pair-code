@@ -219,6 +219,7 @@ This service is the companion to **[whatsapp-ai-bot](https://github.com/inyogesh
 
 - `POST /api/pair` opens one temporary Baileys socket. It waits for the first `connection.update` carrying a `qr` payload — Baileys' "the socket is ready" signal — and only then calls `requestPairingCode()`. Calling it earlier throws `Connection Closed`.
 - Neither WhatsApp nor Baileys keeps that socket alive on its own: WhatsApp drops it after its last QR ref (~2 minutes) and again with `515` right after a device links. The manager reopens it in both cases, so the QR stays scannable for the whole session.
+- A pairing code dies with the socket that requested it: `requestPairingCode()` also writes `creds.me`, and Baileys chooses the login path over registration whenever that field exists. Reusing the directory after a close makes WhatsApp answer `401`, so pair mode clears the stale code and wipes the auth directory before reconnecting (max 3 codes per session).
 - On `connection === 'open'` the session is marked `paired`; 1.5 s later the socket is closed *without* logging out, which would invalidate the fresh credentials. Only the auth files remain, so the slot is free for the next visitor immediately.
 - `MAX_SESSIONS` limits sockets, not downloads: linked sessions stay downloadable for `PAIRED_KEEP_MS` without occupying a slot. `MAX_STORED_SESSIONS` caps the files kept on disk.
 - A sweeper runs every 15 s, deleting expired sessions and their temp directories.

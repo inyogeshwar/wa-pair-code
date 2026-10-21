@@ -86,6 +86,9 @@ export async function createSession({ number = null, mode }) {
     error: null,
     authDir: path.join(config.authDir, randomUUID()),
     sock: null,
+    // How many pairing codes this session has asked WhatsApp for. A code is
+    // bound to the socket that requested it, so a reconnect needs a new one.
+    pairCodes: 0,
     createdAt: Date.now(),
     expiresAt: Date.now() + config.sessionTtlMs,
     released: false,
@@ -108,6 +111,9 @@ export async function createSession({ number = null, mode }) {
 
 /** How many times one session may reopen its socket before giving up. */
 const MAX_RECONNECTS = 10;
+
+/** How many pairing codes one session may request before giving up. */
+const MAX_PAIR_CODES = 3;
 
 /** Open the socket and resolve as soon as we have a code / QR / open session. */
 async function openSocket(session) {
@@ -167,6 +173,19 @@ async function openSocket(session) {
  * "couldn't log in" the phone reports when it scans a dead code — and a
  * successful pairing never reaches the "paired" state the download needs.
  */
+/**
+ * Forget a half-registered companion.
+ *
+ * requestPairingCode() writes creds.me to disk. Baileys decides between
+ * registering and *logging in* from that field, so a socket opened after a
+ * dead pairing would try to log in as a device WhatsApp has never seen and
+ * get a 401. Wiping the directory makes the next socket register from zero.
+ */
+async function resetAuthDir(session) {
+  await rm(session.authDir, { recursive: true, force: true });
+  await mkdir(session.authDir, { recursive: true });
+}
+
 async function connectSocket(session, ctx, attempt) {
   // The session may have been released or swept while the retry was queued.
   if (!sessions.has(session.id)) return;
@@ -207,12 +226,29 @@ async function connectSocket(session, ctx, attempt) {
           if (session.status === 'requesting') session.status = 'awaiting';
           ctx.ready();
         } else if (session.mode === 'pair' && !session.code) {
+          if (session.pairCodes >= MAX_PAIR_CODES) {
+            session.status = 'failed';
+            session.error =
+              'The pairing code expired too many times. Try again in a few minutes or use the QR code.';
+            log.warn({ session: session.id, pairCodes: session.pairCodes }, 'pairing code limit reached');
+            return;
+          }
+
           try {
             const raw = await sock.requestPairingCode(session.number);
             session.code = formatCode(raw);
+            session.pairCodes += 1;
             session.status = 'awaiting';
+            log.info(
+              { session: session.id, number: session.number, codes: session.pairCodes },
+              'pairing code issued'
+            );
             ctx.ready();
-          } catch {
+          } catch (error) {
+            log.warn(
+              { session: session.id, err: error?.message ?? String(error) },
+              'pairing code request rejected'
+            );
             session.status = 'failed';
             session.error =
               'WhatsApp refused the pairing request. Check the number (with country code) and try again.';
@@ -253,6 +289,28 @@ async function connectSocket(session, ctx, attempt) {
         // Paired, released, or swept away — nothing left to keep alive.
         if (session.status === 'paired' || !sessions.has(session.id)) return;
 
+        // A pairing code only lives as long as the socket that requested it.
+        // requestPairingCode() also writes creds.me, and Baileys picks "log in"
+        // over "register" whenever that field is set. Reconnecting with those
+        // half-registered credentials makes WhatsApp answer 401, so pair mode
+        // has to drop the code and start from a clean directory.
+        const restartPairing = session.mode === 'pair';
+        if (restartPairing) {
+          session.code = null;
+          session.status = 'requesting';
+
+          if (session.pairCodes >= MAX_PAIR_CODES) {
+            session.status = 'failed';
+            session.error =
+              'The pairing code expired too many times. Try again in a few minutes or use the QR code.';
+            log.warn(
+              { session: session.id, pairCodes: session.pairCodes },
+              'pairing code limit reached'
+            );
+            return;
+          }
+        }
+
         const canRetry =
           attempt < MAX_RECONNECTS &&
           session.status !== 'failed' &&
@@ -283,14 +341,20 @@ async function connectSocket(session, ctx, attempt) {
 
         setTimeout(() => {
           if (session.status === 'paired' || !sessions.has(session.id)) return;
+
+          const reconnect = () => {
+            if (session.status === 'paired' || !sessions.has(session.id)) return;
+            connectSocket(session, ctx, attempt + 1).catch(() => {});
+          };
+
+          if (restartPairing) {
+            resetAuthDir(session).then(reconnect, reconnect);
+            return;
+          }
+
           // Flush the credentials a just-finished pairing produced before the
           // next socket reads them back from disk.
-          saveCreds()
-            .catch(() => {})
-            .finally(() => {
-              if (session.status === 'paired' || !sessions.has(session.id)) return;
-              connectSocket(session, ctx, attempt + 1).catch(() => {});
-            });
+          saveCreds().catch(() => {}).finally(reconnect);
         }, 500);
       }
     } catch {
